@@ -123,7 +123,11 @@ function system_resolvconf_generate($dynupdate = false) {
 	$syscfg = $config['system'];
 
 	foreach(get_dns_nameservers() as $dns_ns) {
-		$resolvconf .= "nameserver $dns_ns\n";
+		if ($dns_ns == '127.0.0.1') {
+			$resolvconf .= "nameserer $dns_ns\n";
+		} else {
+			$resolvers .= "nameserver $dns_ns\n";
+		}
 	}
 
 	if (isset($syscfg['dnsallowoverride'])) {
@@ -149,6 +153,15 @@ function system_resolvconf_generate($dynupdate = false) {
 
 	$dnslock = lock('resolvconf', LOCK_EX);
 
+	if (!isset($config['dnsmasq']['enable'])) {
+		$resolvconf .= $resolvers;
+	} else {
+		$fd = fopen("{$g['varetc_path']}/resolv.dnsmasq", "w");
+		if ($fd) {
+			fwrite($fd, $resolvers);
+	        	fclose($fd);
+		}
+	}
 	$fd = fopen("{$g['etc_path']}/resolv.conf", "w");
 	if (!$fd) {
 		printf("Error: cannot open resolv.conf in system_resolvconf_generate().\n");
@@ -265,6 +278,32 @@ function get_nameservers() {
 	}
 
 	return $master_list;
+}
+
+function get_default_nameservers() {
+    global $config, $g;
+    $master_list = array();
+
+    $gateways_arr = return_gateways_array(false, true);
+    foreach ($gateways_arr as $gateway) {
+        if (isset($gateway['defaultgw'])) {
+            if (!empty($gateway['interface'])) {
+                $ns_file = "{$g['varetc_path']}/nameserver_{$gateway['interface']}";
+                if (file_exists($ns_file)) {
+                    $dns_s = file($ns_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                    if (is_array($dns_s)) {
+                        foreach ($dns_s as $dns) {
+                            if (is_ipaddr($dns)) {
+                                $master_list[] = $dns;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return $master_list;
 }
 
 /* Create localhost + local interfaces entries for /etc/hosts */
@@ -1272,14 +1311,14 @@ function system_webgui_start() {
 
 function get_dns_nameservers() {
 	global $config;
-	
+
 	$dns_nameservers = array();
-	
+
 	if (isset($config['system']['developerspew'])) {
 		$mt = microtime();
 		echo "get_dns_nameservers() being called $mt\n";
 	}
-	
+
 	$syscfg = $config['system'];
 	if ((((isset($config['dnsmasq']['enable'])) &&
    		(empty($config['dnsmasq']['port']) || $config['dnsmasq']['port'] == "53") &&
@@ -1294,7 +1333,7 @@ function get_dns_nameservers() {
 			$dns_nameservers[] = "127.0.0.1";
 	}
 	/* get dynamically assigned DNS servers (if any) */
-	$ns = array_unique(get_nameservers());
+	$ns = array_unique(get_default_nameservers());
 	if (isset($syscfg['dnsallowoverride'])) {
 		if(!is_array($ns)) {
 			$ns = array();

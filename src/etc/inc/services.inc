@@ -2028,6 +2028,8 @@ function services_dnsmasq_configure($restart_dhcp = true) {
 
 	// hard coded args: will be removed to avoid duplication if specified in custom_options
 	$standard_args = array(
+		"conf-dir" => "--conf-dir={$g['varetc_path']}/dnsmasq.d",
+		"resolv-file" => "--resolv-file={$g['varetc_path']}/resolv.dnsmasq",
 		"dns-forward-max" => "--dns-forward-max=5000",
 		"cache-size" => "--cache-size=10000",
 		"local-ttl" => "--local-ttl=1"
@@ -2055,6 +2057,10 @@ function services_dnsmasq_configure($restart_dhcp = true) {
 		/* generate hosts file */
 		if (system_hosts_generate() != 0) {
 			$return = 1;
+		}
+
+		if (!is_dir("{$g['varetc_path']}/dnsmasq.d")) {
+			safe_mkdir("{$g['varetc_path']}/dnsmasq.d", 0750);
 		}
 
 		$args = "";
