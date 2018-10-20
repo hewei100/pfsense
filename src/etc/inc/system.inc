@@ -124,7 +124,7 @@ function system_resolvconf_generate($dynupdate = false) {
 
 	foreach(get_dns_nameservers() as $dns_ns) {
 		if ($dns_ns == '127.0.0.1') {
-			$resolvconf .= "nameserer $dns_ns\n";
+			$resolvconf .= "nameserver $dns_ns\n";
 		} else {
 			$resolvers .= "nameserver $dns_ns\n";
 		}
@@ -284,9 +284,9 @@ function get_default_nameservers() {
     global $config, $g;
     $master_list = array();
 
-    $gateways_arr = return_gateways_array(false, true);
+    $gateways_arr = return_gateways_array(false, false, false, false);
     foreach ($gateways_arr as $gateway) {
-        if (isset($gateway['defaultgw'])) {
+        if (isset($gateway['isdefaultgw'])) {
             if (!empty($gateway['interface'])) {
                 $ns_file = "{$g['varetc_path']}/nameserver_{$gateway['interface']}";
                 if (file_exists($ns_file)) {
